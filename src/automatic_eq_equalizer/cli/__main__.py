@@ -5,6 +5,7 @@ import copy
 from threading import Thread
 import pyqtgraph as pg
 from PyQt5 import QtWidgets
+from PyQt5.QtCore import QThread, pyqtSignal
 
 from automatic_eq_equalizer.audio_measurement.measurement import FrequencyResponseMeasurement
 from automatic_eq_equalizer.eq_control.equalizer_apo import EqualizerPreset
@@ -70,10 +71,10 @@ def mask_high_freqs_plot(freqs, data, end_freq_correction):
 # RealTimePlotter: Plot measured, baseline, and target responses plus error
 # =============================================================================
 class RealTimePlotter:
-    def __init__(self):
-        self.app = QtWidgets.QApplication([])
+    def __init__(self, app):
+        self.app = app
         self.win = pg.GraphicsLayoutWidget(title="Real-time EQ Optimization")
-        self.win.resize(1200, 800)
+        self.win.showMaximized()
 
         # Frequency response plot
         self.freq_plot = self.win.addPlot(title="Frequency Response", row=0, col=0)
@@ -126,7 +127,7 @@ class RealTimePlotter:
             target_value = 0
         self.original_curve.setData(freqs, original)
         self.best_corrected_curve.setData(freqs, best_corrected)
-        # self.latest_corrected_curve.setData(freqs, np.atleast_1d(latest_corrected))
+        self.latest_corrected_curve.setData(freqs, latest_corrected)
         self.target_line.setData(freqs, np.full_like(freqs, target_value))
 
     def update_error(self, iteration, error_value, original_rms, best_rms):
@@ -148,9 +149,12 @@ class RealTimePlotter:
 # =============================================================================
 # AutoEQIterative: Iterative EQ correction using filter design and merging
 # =============================================================================
-class AutoEQIterative:
+class AutoEQIterative(QThread):
+    update_freq_signal = pyqtSignal(np.ndarray, np.ndarray, np.ndarray, np.ndarray, float)
+    update_error_signal = pyqtSignal(int, float, float, float)
+
     def __init__(self):
-        self.plotter = RealTimePlotter()
+        super(AutoEQIterative, self).__init__()
         self.update_queue = queue.Queue()
 
         # We'll store the "baseline_response" (first measured) for plotting reference.
@@ -312,6 +316,8 @@ class AutoEQIterative:
             print("Failed to measure initial response.")
             return
 
+        self.freqs = freqs
+
         # 2) Normalize initial measurement (like in fmin_slsqp_EQ_optimization.py)
         idx_norm = np.argmin(np.abs(freqs - NORM_FREQ))
         measured_norm = measured - measured[idx_norm]
@@ -354,13 +360,15 @@ class AutoEQIterative:
             print("Measurement error after initial EQ, stopping.")
             return
 
+        self.freqs = freqs_initial_eq
+
         # Normalize measurement after initial EQ
         measured_initial_eq_norm = measured_initial_eq - measured_initial_eq[idx_norm]
         if SMOOTHING_WINDOW > 1:
             measured_initial_eq_norm = np.convolve(measured_initial_eq_norm, window, mode='same')
         measured = measured_initial_eq_norm # Use normalized and smoothed measurement
 
-        current_rms = self.compute_rms_error(freqs, measured)
+        current_rms = self.compute_rms_error(self.freqs, measured)
         print(f"RMS Error after initial EQ: {current_rms:.2f} dB")
 
         # Initialize best_corrected_response after initial optimization
@@ -368,28 +376,27 @@ class AutoEQIterative:
         self.best_filter_list = copy.deepcopy(self.filter_list)
         self.best_corrected_response = measured.copy()
 
-
         iteration = 0
         while iteration < MAX_FILTERS: # Use MAX_FILTERS for iterative refinement now
             # Compute the current target as the average of the *lower TARGET_FREQ_RATIO* frequencies
             # up to END_FREQ.
-            freqs_masked_target, meas_masked_target = mask_high_freqs_target(freqs, measured, END_FREQ)
+            freqs_masked_target, meas_masked_target = mask_high_freqs_target(self.freqs, measured, END_FREQ)
             target_value = np.mean(meas_masked_target)
 
             # Mask for plotting only up to END_FREQ
-            freqs_masked_plot, meas_masked_plot = mask_high_freqs_plot(freqs, measured, END_FREQ)
+            freqs_masked_plot, meas_masked_plot = mask_high_freqs_plot(self.freqs, measured, END_FREQ)
 
 
             # Update the frequency response plot with original, best, and latest corrected curves.
-            self.plotter.update_freq_response(
+            self.update_freq_signal.emit(
                 freqs_masked_plot,
-                ### self.baseline_response[:len(freqs_masked_plot)], CAUSED ERROR
+                self.baseline_response[:len(freqs_masked_plot)],
                 self.best_corrected_response[:len(freqs_masked_plot)],
-                np.atleast_1d(meas_masked_plot), # Latest corrected response
+                meas_masked_plot,
                 target_value
             )
             print(f"Iteration {iteration+1}, RMS Error: {current_rms:.2f} dB")
-            self.plotter.update_error(iteration+1, current_rms, initial_rms_for_plot, self.best_rms_error)
+            self.update_error_signal.emit(iteration+1, current_rms, initial_rms_for_plot, self.best_rms_error)
 
             if current_rms < ERROR_THRESHOLD:
                 print("Convergence reached.")
@@ -400,7 +407,7 @@ class AutoEQIterative:
             previous_rms = current_rms
 
             # Design a new filter using the adaptive correction factor.
-            new_filter = self.design_filter_for_peak(freqs, measured, self.correction_factor)
+            new_filter = self.design_filter_for_peak(self.freqs, measured, self.correction_factor)
 
             # Try merging with an existing filter.
             merged = self.refine_or_merge_filter(new_filter, freq_threshold=0.03)
@@ -448,6 +455,7 @@ class AutoEQIterative:
                 self.correction_factor = min(self.correction_factor * 1.1, 0.8)
                 # Accept the new measurement.
                 measured = measured_after
+                self.freqs = freqs_after
                 if new_rms < self.best_rms_error:
                     self.best_rms_error = new_rms
                     self.best_filter_list = copy.deepcopy(self.filter_list)
@@ -455,29 +463,31 @@ class AutoEQIterative:
 
             current_rms = new_rms
             iteration += 1
-            self.plotter.process_events()
 
         # Final update and error report.
-        freqs_masked_plot, meas_masked_plot = mask_high_freqs_plot(freqs, measured, END_FREQ) #mask for final plot
-        self.plotter.update_freq_response(
+        freqs_masked_target, meas_masked_target = mask_high_freqs_target(self.freqs, measured, END_FREQ)
+        target_value = np.mean(meas_masked_target)
+        freqs_masked_plot, meas_masked_plot = mask_high_freqs_plot(self.freqs, measured, END_FREQ)
+        self.update_freq_signal.emit(
             freqs_masked_plot,
             self.baseline_response[:len(freqs_masked_plot)],
             self.best_corrected_response[:len(freqs_masked_plot)],
-            meas_masked_plot, # Final latest corrected response
-            np.full_like(freqs_masked_plot, target_value)
+            meas_masked_plot,
+            target_value
         )
-        final_rms = self.compute_rms_error(freqs, measured)
-        self.plotter.update_error(iteration+1, final_rms, initial_rms_for_plot, self.best_rms_error)
+        final_rms = self.compute_rms_error(self.freqs, measured)
+        self.update_error_signal.emit(iteration+1, final_rms, initial_rms_for_plot, self.best_rms_error)
         print(f"Final RMS Error: {final_rms:.2f} dB")
-
-        while True:
-            self.plotter.process_events()
-            time.sleep(0.01)
 
 
 def main():
+    app = QtWidgets.QApplication([])
+    plotter = RealTimePlotter(app)
     auto_eq = AutoEQIterative()
-    auto_eq.run()
+    auto_eq.update_freq_signal.connect(plotter.update_freq_response)
+    auto_eq.update_error_signal.connect(plotter.update_error)
+    auto_eq.start()
+    app.exec_()
 
 if __name__ == "__main__":
     main()

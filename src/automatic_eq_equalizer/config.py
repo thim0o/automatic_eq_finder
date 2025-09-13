@@ -19,21 +19,20 @@ SMOOTHING_WINDOW = 3  # Smoothing window for initial measurement
 # =============================================================================
 # OPTIMIZATION SETTINGS
 # =============================================================================
-MAX_ITERATIONS = 12  # maximum number of refinement iterations to perform
 ERROR_THRESHOLD = 1.0  # target RMS error (in dB) in the masked frequency region
-CORRECTION_FACTOR = 0.9  # initial fraction of the deviation to correct each iteration
+CORRECTION_FACTOR = 1  # initial fraction of the deviation to correct each iteration
 
 # === Settings for initial optimization (fmin_slsqp) ===
-INITIAL_MAX_FILTERS = 10  # Number of filters for initial optimization
-INITIAL_EQ_PARAM_MIN_GAIN = -20  # dB
-INITIAL_EQ_PARAM_MAX_GAIN = 20  # dB
-INITIAL_PEAK_Q_MIN = 0.3
-INITIAL_PEAK_Q_MAX = 20
+INITIAL_MAX_FILTERS = 15  # Number of filters for initial optimization
+INITIAL_EQ_PARAM_MIN_GAIN = -26  # dB
+INITIAL_EQ_PARAM_MAX_GAIN = 18  # dB
+INITIAL_PEAK_Q_MIN = 0.2
+INITIAL_PEAK_Q_MAX = 50
 
 # =============================================================================
 # TARGET CURVE SETTINGS (HARMAN-LIKE)
 # =============================================================================
-TARGET_BASS_BOOST_DB = 8  # How many dB to boost the bass.
+TARGET_BASS_BOOST_DB = 9  # How many dB to boost the bass.
 TARGET_TILT_DB_PER_DECADE = -1.0  # Downward slope. E.g., -1dB means 1k is 1dB louder than 10k.
 TARGET_CORNER_FREQ_HZ = 105.0  # The frequency where the bass boost starts to level off.
 
@@ -41,3 +40,9 @@ TARGET_CORNER_FREQ_HZ = 105.0  # The frequency where the bass boost starts to le
 # FILE PATHS
 # =============================================================================
 EQ_CONFIG_PATH = r"C:\Program Files\EqualizerAPO\config\peace.txt"
+
+
+
+OPTIMIZER_SMOOTHING_FACTOR = 1/6
+MAX_FINETUNE_ITERATIONS = 10
+

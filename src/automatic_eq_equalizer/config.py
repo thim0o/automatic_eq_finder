@@ -10,7 +10,7 @@ Central configuration settings for the Automatic EQ Equalizer application.
 SWEEP_DURATION = 1  # seconds per sweep
 NUM_AVERAGES = 1  # number of sweeps to average
 START_FREQ = 35  # Hz
-END_FREQ = 2000  # Hz (upper limit for correction)
+END_FREQ = 1000  # Hz (upper limit for correction)
 MEASURE_EXTRA_RATIO = 0.5  # Measure 25% higher than END_FREQ
 TARGET_FREQ_RATIO = 0.7  # Use lower 90% of frequencies (up to END_FREQ) for target/error calc
 NORM_FREQ = 1000  # Frequency to normalize (0 dB)

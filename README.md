@@ -21,7 +21,7 @@ In any room, sound quality is directly impacted by acoustics. Reflections from w
 
 ![Application Screenshot](Screenshot%202025-09-13%20211513.png)
 *(Pictured: The application's real-time visualization dashboard after a successful optimization.)*
-
+h
 ---
 
 ## Core Features

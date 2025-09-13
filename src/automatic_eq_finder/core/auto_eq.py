@@ -35,6 +35,13 @@ class AutoEQIterative(QThread):
         self.best_rms_error = float('inf')
         self.best_filter_list = []
         self.best_corrected_response = None
+        # Thread-safe stop request flag used to gracefully interrupt the run loop
+        self._stop_requested = False
+
+    def stop(self):
+        """Request a graceful stop of the worker thread."""
+        print("Stop requested for AutoEQIterative.")
+        self._stop_requested = True
 
     # --- Helper Methods (Measurement, EQ Application) ---
 
@@ -114,23 +121,27 @@ class AutoEQIterative(QThread):
         # src/automatic_eq_equalizer/core/auto_eq.py
 
     def run(self):
+        # Reset any previous stop request and start the process
+        self._stop_requested = False
         self.reset_eq()
         measurement_end_freq = config.END_FREQ * (1 + config.MEASURE_EXTRA_RATIO)
-
+    
         # --- 1. Initial Measurement & IMMEDIATE UI Update ---
         freqs, measured, fs = self.measure_response(config.START_FREQ, measurement_end_freq)
-        if freqs is None: return
+        if freqs is None or self._stop_requested:
+            print("Measurement aborted or stop requested before starting optimization.")
+            return
         self.freqs = freqs
         self.target_mag = utils.generate_harman_target(self.freqs)
-
+    
         idx_norm = np.argmin(np.abs(freqs - config.NORM_FREQ))
         measured_norm = measured - measured[idx_norm]
         self.baseline_response = np.copy(measured_norm)
-
+    
         initial_rms_for_plot = self.compute_rms_error(freqs, self.baseline_response)
         print(f"Initial RMS Error (unsmoothed): {initial_rms_for_plot:.2f} dB")
-
-        # <<< NEW: UPDATE UI IMMEDIATELY AFTER FIRST RUN >>>
+    
+        # <<< UPDATE UI IMMEDIATELY AFTER FIRST RUN >>>
         freqs_masked_plot, _ = utils.mask_high_freqs_plot(self.freqs, self.baseline_response)
         # Initialize best_corrected_response here to avoid issues if the loop doesn't run
         self.best_corrected_response = np.copy(self.baseline_response)
@@ -145,42 +156,52 @@ class AutoEQIterative(QThread):
         )
         self.update_error_signal.emit(0, initial_rms_for_plot, initial_rms_for_plot, initial_rms_for_plot)
         # <<< END OF IMMEDIATE UPDATE >>>
-
+    
+        if self._stop_requested:
+            print("Stop requested after initial update.")
+            return
+    
         # --- 2. Main Sequential Optimization ---
         measured_for_optimizer = utils.apply_variable_smoothing(
             self.freqs, measured_norm, factor=config.OPTIMIZER_SMOOTHING_FACTOR)
-
+    
         optimized_x = optimize_eq_parameters(
             self.freqs, measured_for_optimizer, self.target_mag,
             start_freq=config.START_FREQ, end_freq=config.END_FREQ,
             max_filters=config.INITIAL_MAX_FILTERS)
-
+    
         self.filter_list = [(optimized_x[3 * i], optimized_x[3 * i + 1], optimized_x[3 * i + 2]) for i in
                             range(config.INITIAL_MAX_FILTERS)]
-
-        self.filter_list.sort(key=lambda f: f[0]) # sort on freq for better readability
-
+    
+        self.filter_list.sort(key=lambda f: f[0])  # sort on freq for better readability
+    
         self.apply_filters()
         print("Initial sequential optimization applied. Starting fine-tuning loop...")
-
+    
         # --- 3. Iterative Fine-Tuning Loop ---
         current_measurement = None
         iteration = 0
         while iteration < config.MAX_FINETUNE_ITERATIONS:
+            # Allow a graceful interrupt between iterations
+            if self._stop_requested:
+                print("Stop requested. Exiting fine-tune loop.")
+                break
+    
             # Measure the current state of the room with the latest filters
             freqs_iter, measured_iter, _ = self.measure_response(config.START_FREQ, measurement_end_freq)
-            if freqs_iter is None: break
-
+            if freqs_iter is None:
+                break
+    
             self.freqs = freqs_iter
             current_measurement = measured_iter - measured_iter[idx_norm]
             current_rms = self.compute_rms_error(self.freqs, current_measurement)
-
+    
             # Update the "best" result if this is an improvement
             if current_rms < self.best_rms_error:
                 self.best_rms_error = current_rms
                 self.best_filter_list = copy.deepcopy(self.filter_list)
                 self.best_corrected_response = np.copy(current_measurement)
-
+    
             # Update UI with the latest measurement
             freqs_masked_plot, meas_masked_plot = utils.mask_high_freqs_plot(self.freqs, current_measurement)
             full_eq_curve = compute_eq_curve(self.freqs, self.filter_list)
@@ -194,39 +215,39 @@ class AutoEQIterative(QThread):
                 self.filter_list
             )
             self.update_error_signal.emit(iteration + 1, current_rms, initial_rms_for_plot, self.best_rms_error)
-
+    
             print(
                 f"Fine-tune Iteration {iteration + 1}, Current RMS: {current_rms:.2f} dB, Best RMS: {self.best_rms_error:.2f} dB")
-
+    
             if current_rms < config.ERROR_THRESHOLD:
                 print("Convergence threshold reached.")
                 break
-
+    
             # Design one more small correction
             new_filter = self.design_filter_for_peak(self.freqs, current_measurement, self.correction_factor)
-
+    
             # Try to merge this correction with an existing filter, or add it if not possible
             if not self.refine_or_merge_filter(new_filter):
                 self.filter_list.append(new_filter)
                 print("Added new filter for fine-tuning.")
-
+    
             # Apply the newly updated filter list
             self.apply_filters()
             iteration += 1
-
+    
         print(f"Fine-tuning complete. Final Best RMS Error: {self.best_rms_error:.2f} dB")
         # Apply the best filter set found during fine-tuning
         self.filter_list = self.best_filter_list
         self.apply_filters()
         print("Best filter set applied.")
-
+    
         # --- 4. FINAL UI CLEANUP (THE FIX) ---
         # After everything is done, send one last update to the UI to ensure
         # the "Best" and "Latest" curves both show the definitive best result.
         print("Sending final update to UI.")
         final_eq_curve = compute_eq_curve(self.freqs, self.best_filter_list)
         freqs_masked_plot, _ = utils.mask_high_freqs_plot(self.freqs, self.best_corrected_response)
-
+    
         self.update_freq_signal.emit(
             freqs_masked_plot,
             self.baseline_response[:len(freqs_masked_plot)],

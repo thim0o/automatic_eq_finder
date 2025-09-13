@@ -58,6 +58,9 @@ class FrequencyResponseMeasurement:
         self.p = pyaudio.PyAudio()
         self.audio_queue = queue.Queue()
         self.results = {}
+        # cooperative stop event and playback thread reference
+        self._stop_event = threading.Event()
+        self._playback_thread_obj = None
 
 
     def generate_log_sweep(self):
@@ -245,11 +248,17 @@ class FrequencyResponseMeasurement:
     def run_measurement(self):
         """Run the full frequency response measurement"""
         print("Starting frequency response measurement with rapid sweep...")
-
+ 
+        # cooperative stop: clear any previous stop flag
+        try:
+            self._stop_event.clear()
+        except Exception:
+            pass
         # Start playback thread
         playback_thread = threading.Thread(target=self.playback_thread)
         playback_thread.daemon = True
         playback_thread.start()
+        self._playback_thread_obj = playback_thread
 
         # Generate sweep signal
         sweep = self.generate_log_sweep()
@@ -272,6 +281,19 @@ class FrequencyResponseMeasurement:
         all_individual_magnitudes = []
 
         for i in range(self.num_averages):
+            # cooperative stop check
+            try:
+                if getattr(self, "_stop_event", None) is not None and self._stop_event.is_set():
+                    try:
+                        # signal playback thread to finish if waiting on queue
+                        self.audio_queue.put(None)
+                        if self._playback_thread_obj is not None:
+                            self._playback_thread_obj.join(timeout=0.5)
+                    except Exception:
+                        pass
+                    return None
+            except Exception:
+                pass
             print(f"Running measurement {i + 1}/{self.num_averages}")
 
             # Queue the audio for playback - UNPROCESSED sweep is float32
@@ -442,3 +464,15 @@ class FrequencyResponseMeasurement:
     def cleanup(self):
         """Clean up resources"""
         self.p.terminate()
+ 
+    def stop(self):
+        """Request cooperative stop of an in-progress measurement."""
+        try:
+            self._stop_event.set()
+        except Exception:
+            pass
+        try:
+            # unblock playback thread if waiting on the queue
+            self.audio_queue.put(None)
+        except Exception:
+            pass

@@ -19,3 +19,6 @@ pip-delete-this-directory.txt
 
 # Logs
 *.log
+
+# Sound files
+*.wav

@@ -1,11 +1,14 @@
-# Automatic EQ Equalizer
+# Automatic EQ Finder
 
 This project aims to develop an automatic equalizer that adjusts audio frequencies based on various inputs.
+
+# Screenshot
+![Screenshot 2025-09-13 211513.png](Screenshot%202025-09-13%20211513.png)
 
 ## Project Structure
 
 ```
-automatic_eq_equalizer/
+automatic_eq_finder/
 ├── .gitignore
 ├── LICENSE
 ├── pyproject.toml
@@ -13,7 +16,7 @@ automatic_eq_equalizer/
 ├── requirements.txt
 ├── setup.py
 ├── src/
-│   ├── automatic_eq_equalizer/
+│   ├── automatic_eq_finder/
 │   │   ├── __init__.py
 │   │   ├── audio_measurement/
 │   │   │   ├── __init__.py

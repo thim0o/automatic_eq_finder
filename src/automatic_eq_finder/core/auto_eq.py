@@ -157,6 +157,9 @@ class AutoEQIterative(QThread):
 
         self.filter_list = [(optimized_x[3 * i], optimized_x[3 * i + 1], optimized_x[3 * i + 2]) for i in
                             range(config.INITIAL_MAX_FILTERS)]
+
+        self.filter_list.sort(key=lambda f: f[0]) # sort on freq for better readability
+
         self.apply_filters()
         print("Initial sequential optimization applied. Starting fine-tuning loop...")
 

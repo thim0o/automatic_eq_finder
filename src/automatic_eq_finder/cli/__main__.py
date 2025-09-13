@@ -5,8 +5,8 @@ Main entry point for launching the Automatic EQ Equalizer graphical user interfa
 """
 
 from PyQt5 import QtWidgets
-from automatic_eq_equalizer.ui.realtime_plotter import RealTimePlotter
-from automatic_eq_equalizer.core.auto_eq import AutoEQIterative
+from automatic_eq_finder.ui.realtime_plotter import RealTimePlotter
+from automatic_eq_finder.core.auto_eq import AutoEQIterative
 
 
 def main():

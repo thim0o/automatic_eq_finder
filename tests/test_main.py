@@ -1,5 +1,5 @@
 import pytest
-from automatic_eq_equalizer.cli.__main__ import main
+from automatic_eq_finder.cli.__main__ import main
 
 def test_main_function_prints_hello(capsys):
     # This test assumes that the main function in cli/__main__.py

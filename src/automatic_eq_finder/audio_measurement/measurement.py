@@ -44,7 +44,7 @@ class FrequencyResponseMeasurement:
                  chunk_size=4096,
                  start_freq=20,
                  end_freq=20000,
-                 sweep_duration=3.0,
+                 sweep_duration=2.0,
                  num_averages=1,
                  confidence_interval_width=0.95):
         self.sample_rate = sample_rate

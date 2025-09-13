@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from unittest.mock import Mock, patch, MagicMock
-from automatic_eq_equalizer.audio_measurement.measurement import FrequencyResponseMeasurement
+from automatic_eq_finder.audio_measurement.measurement import FrequencyResponseMeasurement
 
 
 class TestFrequencyResponseMeasurement:

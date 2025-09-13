@@ -11,10 +11,9 @@ SWEEP_DURATION = 1  # seconds per sweep
 NUM_AVERAGES = 1  # number of sweeps to average
 START_FREQ = 35  # Hz
 END_FREQ = 1000  # Hz (upper limit for correction)
-MEASURE_EXTRA_RATIO = 0.5  # Measure 25% higher than END_FREQ
-TARGET_FREQ_RATIO = 0.7  # Use lower 90% of frequencies (up to END_FREQ) for target/error calc
+MEASURE_EXTRA_RATIO = 0.55  # Measure 25% higher than END_FREQ
+TARGET_FREQ_RATIO = 1  # Use lower 70% of frequencies (up to END_FREQ) for target/error calc
 NORM_FREQ = 1000  # Frequency to normalize (0 dB)
-SMOOTHING_WINDOW = 3  # Smoothing window for initial measurement
 
 # =============================================================================
 # OPTIMIZATION SETTINGS
@@ -25,7 +24,7 @@ CORRECTION_FACTOR = 1  # initial fraction of the deviation to correct each itera
 # === Settings for initial optimization (fmin_slsqp) ===
 INITIAL_MAX_FILTERS = 15  # Number of filters for initial optimization
 INITIAL_EQ_PARAM_MIN_GAIN = -26  # dB
-INITIAL_EQ_PARAM_MAX_GAIN = 18  # dB
+INITIAL_EQ_PARAM_MAX_GAIN = 15  # dB
 INITIAL_PEAK_Q_MIN = 0.2
 INITIAL_PEAK_Q_MAX = 50
 

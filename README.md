@@ -24,6 +24,7 @@ In any room, sound quality is directly impacted by acoustics. Reflections from w
 
 
 https://github.com/user-attachments/assets/2f10da14-15c8-4784-9bd9-f1a999569794
+
 *A video showing the real-time optimization process.*
 
 

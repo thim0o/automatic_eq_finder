@@ -9,7 +9,8 @@
 This project is an intelligent, closed-loop system that automatically corrects your room's acoustics. It listens to your speakers, identifies frequency imbalances caused by room reflections, and generates a precise parametric EQ to deliver a balanced, high-fidelity listening experience.
 
 From real-time audio measurement to the direct application of filter settings, this is an end-to-end solution for automated sound calibration.
-![Application Screenshot](Screenshot%202025-09-13%20211513.png)
+<img width="2560" height="1392" alt="Screenshot 2025-09-13 211513" src="https://github.com/user-attachments/assets/202bd17f-90d7-45fe-a200-cbf5caf5fb43" />
+
 *The application's real-time visualization dashboard after a successful optimization.*
 
 ---

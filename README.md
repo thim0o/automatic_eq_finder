@@ -6,9 +6,9 @@
 
 </div>
 
-A closed-loop acoustic control system engineered to automatically measure a room's frequency response and generate a precise parametric EQ correction. This project applies signal processing and numerical optimization to correct for acoustic distortions, producing a balanced and accurate sound signature at the listening position.
+This project is an intelligent, closed-loop system that automatically corrects your room's acoustics. It listens to your speakers, identifies frequency imbalances caused by room reflections, and generates a precise parametric EQ to deliver a balanced, high-fidelity listening experience.
 
-The application is a complete, end-to-end solution, from real-time audio measurement to the direct application of filter settings to system-wide equalizers like Equalizer APO.
+From real-time audio measurement to the direct application of filter settings, this is an end-to-end solution for automated sound calibration.
 ![Application Screenshot](Screenshot%202025-09-13%20211513.png)
 *The application's real-time visualization dashboard after a successful optimization.*
 
@@ -16,7 +16,7 @@ The application is a complete, end-to-end solution, from real-time audio measure
 
 ## Project Overview
 
-In any room, sound quality is directly impacted by acoustics. Reflections from walls, ceilings, and furniture create unwanted peaks and dips in the frequency response, which distorts the audio from its original source. This tool replaces the complex manual calibration process with a fully automated, data-driven system to achieve high-fidelity sound.
+In any listening environment, sound is distorted by the room itself. Reflections from walls, ceilings, and furniture create unwanted peaks and dips in the frequency response, coloring the audio and masking details. This tool replaces the complex, manual process of acoustic calibration with a fully automated, data-driven system to achieve **a more balanced sound**.
 
 
 
@@ -72,15 +72,16 @@ The application operates as a structured closed-loop control system to find the 
 
 ### Prerequisites
 *   Python 3.11 or newer.
-*   A measurement microphone configured as an input device.
-*   Equalizer APO installed (the application writes to the default Windows config path).
+*   A microphone configured as an input device.
+    > **Note:** While a calibrated measurement microphone is ideal for accuracy, most standard microphones can still be used effectively to correct significant imbalances, especially in the bass and lower-midrange frequencies.
+*   Equalizer APO installed (the application writes to its configuration file).
 
 ### Setup
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/automatic-eq-finder.git
-    cd automatic-eq-finder
+    git clone https://github.com/thim0o/automatic_eq_finder.git
+    cd automatic_eq_finder
     ```
 
 2.  **Create and activate a Python virtual environment:**
@@ -91,7 +92,7 @@ The application operates as a structured closed-loop control system to find the 
     ```
 
 3.  **Install the project in editable mode:**
-    This command uses the `pyproject.toml` file to install all required dependencies and makes the command-line tool available.
+    This command installs the project and its dependencies, making the command-line tool available.
     ```bash
     pip install -e .
     ```
@@ -102,3 +103,12 @@ With the virtual environment activated, run the application from the terminal:
 ```bash
 automatic-eq-finder
 ```
+
+---
+## Future Enhancements
+*   **Profile Management:** Implement functionality to save, load, and switch between different EQ profiles (e.g., for different listening positions).
+*   **Expanded Compatibility:** Add support for generating EQ settings for other platforms and software, such as REW (Room EQ Wizard) or CamillaDSP.
+*   **Advanced Target Curves:** Allow users to design and import their own custom target curves.
+
+## License
+This project is licensed under the MIT License.

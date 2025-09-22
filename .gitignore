@@ -25,3 +25,5 @@ pip-delete-this-directory.txt
 
 # Project-specific output files and folders
 /audio_outputs/
+/src/automatic_eq_finder/ui/export_results/eq_settings.txt
+/src/automatic_eq_finder/ui/export_results/frequency_response.png

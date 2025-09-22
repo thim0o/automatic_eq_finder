@@ -1,5 +1,3 @@
-import os
-
 class EqualizerPreset:
     """
     Represents an Equalizer APO preset configuration.
@@ -147,7 +145,7 @@ class EqualizerPreset:
     @classmethod
     def reset_preset(cls):
         """
-        Creates and returns a preset object with no filters and 0 dB preamp,
+        Creates and returns an empty preset object with no filters and 0 dB preamp,
         effectively resetting the EQ.
         """
         return cls(preamp=0.0)

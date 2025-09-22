@@ -1,21 +1,32 @@
 # src/automatic_eq_equalizer/utils.py
 
 """
-A consolidated module for all utility and helper functions.
+A module for all utility and helper functions.
 """
+import os
 
 import numpy as np
 from . import config
 
 
+def ensure_output_dir_exists():
+    """Checks if the audio output directory exists and creates it if not."""
+    # Get the path from the config file
+    dir_path = config.AUDIO_OUTPUT_DIR
+    # Create the directory, does nothing if it already exists
+    os.makedirs(dir_path, exist_ok=True)
+    return dir_path
+
+
 # --- MASKING FUNCTIONS ---
+
 
 def mask_high_freqs_target(freqs, data):
     """
     Ignore the highest portion of the frequency range for target and error calculations.
     """
     limit_f_target = config.END_FREQ * config.TARGET_FREQ_RATIO
-    idx_lim_target = np.searchsorted(freqs, limit_f_target, side='right')
+    idx_lim_target = np.searchsorted(freqs, limit_f_target, side="right")
     return freqs[:idx_lim_target], data[:idx_lim_target]
 
 
@@ -23,13 +34,16 @@ def mask_high_freqs_plot(freqs, data):
     """
     Mask frequencies above end_freq_correction for plotting purposes.
     """
-    idx_lim_plot = np.searchsorted(freqs, config.END_FREQ, side='right')
+    idx_lim_plot = np.searchsorted(freqs, config.END_FREQ, side="right")
     return freqs[:idx_lim_plot], data[:idx_lim_plot]
 
 
 # --- SMOOTHING FUNCTION ---
 
-def apply_variable_smoothing(freqs: np.ndarray, data: np.ndarray, factor: float = 1 / 6) -> np.ndarray:
+
+def apply_variable_smoothing(
+    freqs: np.ndarray, data: np.ndarray, factor: float = 1 / 6
+) -> np.ndarray:
     """
     Applies variable (fractional-octave) smoothing to frequency response data.
     This is crucial for making the optimizer focus on broad tonal issues.
@@ -51,6 +65,7 @@ def apply_variable_smoothing(freqs: np.ndarray, data: np.ndarray, factor: float 
 
 # --- TARGET CURVE GENERATION FUNCTION ---
 
+
 def generate_harman_target(freqs: np.ndarray) -> np.ndarray:
     """
     Generates a Harman-like target curve with a customizable low-shelf bass boost
@@ -68,8 +83,9 @@ def generate_harman_target(freqs: np.ndarray) -> np.ndarray:
 
     target_db = low_shelf + tilt
 
-    val_at_1k_ref = (bass_gain_db / np.sqrt(1 + (1000.0 / corner_freq) ** 4)) + \
-                    (config.TARGET_TILT_DB_PER_DECADE * np.log10(1000.0 / tilt_ref_freq))
+    val_at_1k_ref = (bass_gain_db / np.sqrt(1 + (1000.0 / corner_freq) ** 4)) + (
+        config.TARGET_TILT_DB_PER_DECADE * np.log10(1000.0 / tilt_ref_freq)
+    )
 
     normalized_target_db = target_db - val_at_1k_ref
     return normalized_target_db

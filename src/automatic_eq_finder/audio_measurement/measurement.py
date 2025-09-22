@@ -9,8 +9,7 @@ from scipy.io import wavfile
 from scipy.stats import t
 import csv
 import os
-import sys
-
+from .. import utils
 
 class FrequencyResponseMeasurement:
     """
@@ -248,7 +247,7 @@ class FrequencyResponseMeasurement:
     def run_measurement(self):
         """Run the full frequency response measurement"""
         print("Starting frequency response measurement with rapid sweep...")
- 
+
         # cooperative stop: clear any previous stop flag
         try:
             self._stop_event.clear()
@@ -273,7 +272,9 @@ class FrequencyResponseMeasurement:
         test_signal = np.concatenate([sweep, silence])
 
         # Save the sweep signal for reference
-        wavfile.write('test_sweep.wav', self.sample_rate, sweep)
+        output_dir = utils.ensure_output_dir_exists()
+
+        wavfile.write(os.path.join(output_dir, 'test_sweep.wav'), self.sample_rate, sweep)
 
         # Storage for multiple measurements
         all_freqs = []
@@ -309,7 +310,7 @@ class FrequencyResponseMeasurement:
 
             # Save the recorded data for debugging
             if i == 0:
-                wavfile.write('recorded_sweep.wav', self.sample_rate, recorded_data)
+                wavfile.write(os.path.join(output_dir, 'recorded_sweep.wav'), self.sample_rate, recorded_data)
 
             # Ensure no length mismatch by trimming if necessary
             if len(recorded_data) > len(test_signal) * 2:
@@ -324,7 +325,7 @@ class FrequencyResponseMeasurement:
                 # Save impulse response
                 if i == 0:
                     normalized_ir = impulse_response / (np.max(np.abs(impulse_response)) + 1e-10)
-                    wavfile.write('impulse_response.wav', self.sample_rate, normalized_ir)
+                    wavfile.write(os.path.join(output_dir, 'impulse_response.wav'), self.sample_rate, normalized_ir)
 
                 # Calculate frequency response
                 frequencies, magnitude = self.calculate_frequency_response(impulse_response)
@@ -386,15 +387,18 @@ class FrequencyResponseMeasurement:
             print("No frequency response data to save.")
             return
 
+        output_dir = utils.ensure_output_dir_exists()
+        full_path = os.path.join(output_dir, filename)
+
         frequencies = self.results['frequencies']
         magnitude = self.results['magnitude']
 
-        with open(filename, 'w', newline='') as csvfile:
+        with open(full_path, 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerow(['frequency', 'raw'])  # Write header row
             for freq, mag in zip(frequencies, magnitude):
                 csv_writer.writerow([f"{freq:.2f}", f"{mag:.2f}"]) # Format to two decimal places
-        print(f"Frequency response data saved to '{filename}'")
+        print(f"Frequency response data saved to '{full_path}'")
 
 
     def plot_results(self):
@@ -458,13 +462,17 @@ class FrequencyResponseMeasurement:
         plt.axhline(y=0, color='k', linestyle='-', linewidth=0.8)
         plt.legend()
         plt.tight_layout()
-        plt.savefig('frequency_response.png', dpi=150)
+
+        output_dir = utils.ensure_output_dir_exists()
+        save_path = os.path.join(output_dir, 'frequency_response.png')
+
+        plt.savefig(save_path, dpi=150)
         plt.show()
 
     def cleanup(self):
         """Clean up resources"""
         self.p.terminate()
- 
+
     def stop(self):
         """Request cooperative stop of an in-progress measurement."""
         try:

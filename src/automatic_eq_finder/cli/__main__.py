@@ -1,4 +1,4 @@
-# src/automatic_eq_equalizer/cli/__main__.py
+# src/automatic_eq_finder/cli/__main__.py
 
 """
 Main entry point for launching the Automatic EQ Equalizer graphical user interface.
@@ -11,7 +11,7 @@ from automatic_eq_finder.core.auto_eq import AutoEQIterative
 
 def main():
     """Launch the Automatic EQ Equalizer UI with Start/Stop controls."""
-    print("Hello, Automatic EQ Equalizer!")
+    print("Launching Automatic EQ Equalizer UI...")
 
     # Set up the Qt Application
     app = QtWidgets.QApplication([])

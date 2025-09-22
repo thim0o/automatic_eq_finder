@@ -1,16 +1,14 @@
-# src/automatic_eq_equalizer/optimization/optimizer.py
+# src/automatic_eq_finder/optimization/optimizer.py
 
 import numpy as np
 from scipy.optimize import minimize
 from .. import config
-
-# === Logging (Optional, but good practice) ===
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-# === Filter Functions (Can be simplified) ===
+# === Filter Functions ===
 def peaking_filter_response(f, fc, gain, Q):
     """
     Models a single peaking filter's response. Using a Gaussian shape is stable
@@ -32,7 +30,7 @@ def compute_eq_curve(f, filters):
     return eq_total
 
 
-# === NEW SEQUENTIAL OPTIMIZER ===
+# === SEQUENTIAL OPTIMIZER ===
 def optimize_eq_parameters(freqs, measured, target, start_freq, end_freq, max_filters=config.INITIAL_MAX_FILTERS):
     """
     Generates a set of EQ filters using a sequential ("greedy") optimization strategy.

@@ -23,3 +23,5 @@ pip-delete-this-directory.txt
 # Sound files
 *.wav
 
+# Project-specific output files and folders
+/audio_outputs/

@@ -1,4 +1,4 @@
-# src/automatic_eq_equalizer/core/auto_eq.py
+# src/automatic_eq_finder/core/auto_eq.py
 
 import numpy as np
 import time
@@ -18,7 +18,7 @@ from .. import utils
 class AutoEQIterative(QThread):
     """
     The core worker thread for performing the auto-EQ process.
-    This version uses a HYBRID approach:
+    This optimizer uses a HYBRID approach:
     1. A fast initial optimization using the sequential method.
     2. An optional iterative fine-tuning loop for final adjustments.
     """
@@ -46,7 +46,6 @@ class AutoEQIterative(QThread):
     # --- Helper Methods (Measurement, EQ Application) ---
 
     def measure_response(self, start_freq, end_freq):
-        # ... (This method is unchanged) ...
         frm = FrequencyResponseMeasurement(
             start_freq=start_freq, end_freq=end_freq,
             sweep_duration=config.SWEEP_DURATION, num_averages=config.NUM_AVERAGES)
@@ -61,7 +60,6 @@ class AutoEQIterative(QThread):
             frm.cleanup()
 
     def apply_filters(self):
-        # ... (This method is unchanged) ...
         preset = EqualizerPreset()
         for i, (fc, gain, q) in enumerate(self.filter_list):
             print(f"Filter {i + 1}: fc={fc:.1f} Hz, gain={gain:.1f} dB, Q={q:.2f}")
@@ -69,21 +67,19 @@ class AutoEQIterative(QThread):
         preset.apply_to_file(config.EQ_CONFIG_PATH)
 
     def reset_eq(self):
-        # ... (This method is unchanged) ...
         print("Resetting equalizer...")
         preset = EqualizerPreset()
         preset.apply_to_file(config.EQ_CONFIG_PATH)
         time.sleep(0.5)
 
     def compute_rms_error(self, freqs, measured):
-        # ... (This method is unchanged) ...
         freqs_masked, meas_masked = utils.mask_high_freqs_target(freqs, measured)
         end_idx = len(freqs_masked)
         target_masked = self.target_mag[:end_idx]
         deviation = meas_masked - target_masked
         return np.sqrt(np.mean(deviation ** 2))
 
-    # --- Helper Methods for Fine-Tuning (Brought back from earlier version) ---
+    # --- Helper Methods for Fine-Tuning  ---
 
     def find_largest_deviation_peak(self, freqs, measured):
         """Finds the largest deviation from the target curve."""
@@ -116,9 +112,7 @@ class AutoEQIterative(QThread):
                 return True
         return False
 
-    # --- THE NEW HYBRID `run` METHOD ---
 
-        # src/automatic_eq_equalizer/core/auto_eq.py
 
     def run(self):
         # Reset any previous stop request and start the process
@@ -241,7 +235,6 @@ class AutoEQIterative(QThread):
         self.apply_filters()
         print("Best filter set applied.")
     
-        # --- 4. FINAL UI CLEANUP (THE FIX) ---
         # After everything is done, send one last update to the UI to ensure
         # the "Best" and "Latest" curves both show the definitive best result.
         print("Sending final update to UI.")

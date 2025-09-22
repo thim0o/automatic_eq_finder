@@ -12,6 +12,8 @@
 A closed-loop acoustic control system engineered to automatically measure a room's frequency response and generate a precise parametric EQ correction. This project applies signal processing and numerical optimization to correct for acoustic distortions, producing a balanced and accurate sound signature at the listening position.
 
 The application is a complete, end-to-end solution, from real-time audio measurement to the direct application of filter settings to system-wide equalizers like Equalizer APO.
+![Application Screenshot](Screenshot%202025-09-13%20211513.png)
+*The application's real-time visualization dashboard after a successful optimization.*
 
 ---
 
@@ -19,9 +21,15 @@ The application is a complete, end-to-end solution, from real-time audio measure
 
 In any room, sound quality is directly impacted by acoustics. Reflections from walls, ceilings, and furniture create unwanted peaks and dips in the frequency response, which distorts the audio from its original source. This tool replaces the complex manual calibration process with a fully automated, data-driven system to achieve high-fidelity sound.
 
-![Application Screenshot](Screenshot%202025-09-13%20211513.png)
-*(Pictured: The application's real-time visualization dashboard after a successful optimization.)*
-h
+
+
+https://github.com/user-attachments/assets/2f10da14-15c8-4784-9bd9-f1a999569794
+
+*A video showing the real-time optimization process.*
+
+
+
+
 ---
 
 ## Core Features

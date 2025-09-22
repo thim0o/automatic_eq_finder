@@ -1,11 +1,8 @@
-# Automatic Room EQ Corrector
+# Automatic EQ Finder
 
 <div align="center">
 
-![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Status](https://img.shields.io/badge/status-active-brightgreen)
-![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)
+![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)![License](https://img.shields.io/badge/license-MIT-green.svg)![Status](https://img.shields.io/badge/status-active-brightgreen)![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)
 
 </div>
 
@@ -82,8 +79,8 @@ The application operates as a structured closed-loop control system to find the 
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/automatic-eq-corrector.git
-    cd automatic-eq-corrector
+    git clone https://github.com/your-username/automatic-eq-finder.git
+    cd automatic-eq-finder
     ```
 
 2.  **Create and activate a Python virtual environment:**
@@ -103,4 +100,5 @@ The application operates as a structured closed-loop control system to find the 
 
 With the virtual environment activated, run the application from the terminal:
 ```bash
-automatic-eq-equalizer
+automatic-eq-finder
+```

@@ -15,10 +15,11 @@ setup(
         'pyaudio',
         'matplotlib',
         'PyQt5',
+        'pyqtgraph',
     ],
     entry_points={
         'console_scripts': [
-            'auto-eq-finder=automatic_eq_finder.cli.__main__:main',
+            'automatic-eq-finder=automatic_eq_finder.cli.__main__:main',
         ],
     },
 )

@@ -66,7 +66,12 @@ def apply_variable_smoothing(
 # --- TARGET CURVE GENERATION FUNCTION ---
 
 
-def generate_harman_target(freqs: np.ndarray) -> np.ndarray:
+def generate_harman_target(
+    freqs: np.ndarray,
+    bass_gain_db: float = config.TARGET_BASS_BOOST_DB,
+    corner_freq: float = config.TARGET_CORNER_FREQ_HZ,
+    tilt_db_per_decade: float = config.TARGET_TILT_DB_PER_DECADE,
+) -> np.ndarray:
     """
     Generates a Harman-like target curve with a customizable low-shelf bass boost
     and a subtle downward tilt at higher frequencies.
@@ -74,18 +79,49 @@ def generate_harman_target(freqs: np.ndarray) -> np.ndarray:
     if freqs is None or len(freqs) == 0:
         return np.array([])
 
-    bass_gain_db = config.TARGET_BASS_BOOST_DB
-    corner_freq = config.TARGET_CORNER_FREQ_HZ
     low_shelf = bass_gain_db / np.sqrt(1 + (freqs / corner_freq) ** 4)
 
     tilt_ref_freq = 1000.0
-    tilt = config.TARGET_TILT_DB_PER_DECADE * np.log10(freqs / tilt_ref_freq)
+    tilt = tilt_db_per_decade * np.log10(freqs / tilt_ref_freq)
 
     target_db = low_shelf + tilt
 
     val_at_1k_ref = (bass_gain_db / np.sqrt(1 + (1000.0 / corner_freq) ** 4)) + (
-        config.TARGET_TILT_DB_PER_DECADE * np.log10(1000.0 / tilt_ref_freq)
+        tilt_db_per_decade * np.log10(1000.0 / tilt_ref_freq)
     )
 
     normalized_target_db = target_db - val_at_1k_ref
     return normalized_target_db
+
+
+
+def load_calibration_data(file_path: str) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Loads and parses microphone calibration data from a text file.
+    The file is expected to have frequency (Hz) and magnitude (dB) columns,
+    skipping the first two header lines.
+    
+    Returns:
+        tuple[np.ndarray, np.ndarray]: (frequencies, magnitudes_db)
+    """
+    if not os.path.exists(file_path):
+        print(f"Warning: Calibration file not found at {file_path}")
+        return np.array([]), np.array([])
+
+    try:
+        # Load data, skipping the first two lines (header/metadata)
+        # The file uses whitespace separation, which np.loadtxt handles by default.
+        data = np.loadtxt(file_path, skiprows=2)
+        
+        if data.ndim != 2 or data.shape[1] < 2:
+            print(f"Error: Calibration file {file_path} has unexpected format.")
+            return np.array([]), np.array([])
+
+        frequencies = data[:, 0]
+        magnitudes_db = data[:, 1]
+        
+        return frequencies, magnitudes_db
+        
+    except Exception as e:
+        print(f"Error loading calibration data from {file_path}: {e}")
+        return np.array([]), np.array([])

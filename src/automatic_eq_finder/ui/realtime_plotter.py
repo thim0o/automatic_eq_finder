@@ -6,45 +6,11 @@ import numpy as np
 import pyqtgraph as pg
 from PyQt5 import QtWidgets, QtCore
 
-# This makes the entire UI, including buttons and backgrounds, dark.
-DARK_STYLESHEET = """
-    QWidget {
-        background-color: #1e1e1e;
-        color: #dcdcdc;
-        font-family: Segoe UI, sans-serif;
-        font-size: 14pt;
-    }
-    QMainWindow {
-        background-color: #1e1e1e;
-    }
-    QGroupBox {
-        background-color: #2d2d2d;
-        border: 1px solid #444444;
-        border-radius: 5px;
-        margin-top: 1ex; /* leave space at the top for the title */
-        font-weight: bold;
-    }
-    QGroupBox::title {
-        subcontrol-origin: margin;
-        subcontrol-position: top center; /* position at the top center */
-        padding: 0 3px;
-        background-color: #2d2d2d;
-        color: #dcdcdc;
-    }
-    QCheckBox {
-        color: #dcdcdc;
-    }
-    QCheckBox::indicator {
-        width: 13px;
-        height: 13px;
-        border: 1px solid #555555;
-        border-radius: 3px;
-    }
-    QCheckBox::indicator:checked {
-        background-color: #55aaff; /* A pleasant blue for checked state */
-        border: 1px solid #55aaff;
-    }
-"""
+from .style_sheet import DARK_STYLESHEET
+from .. import config
+from .. import utils
+from .target_curve_sliders import TargetCurveSliders
+
 
 
 class RealTimePlotter:
@@ -54,6 +20,12 @@ class RealTimePlotter:
 
     def __init__(self, app):
         self.app = app
+        
+        # Target Curve Parameters (Initial values from config)
+        self.bass_gain_db = config.TARGET_BASS_BOOST_DB
+        self.corner_freq = config.TARGET_CORNER_FREQ_HZ
+        self.tilt_db_per_decade = config.TARGET_TILT_DB_PER_DECADE
+        
         # Apply the dark stylesheet to the entire application
         self.app.setStyleSheet(DARK_STYLESHEET)
 
@@ -80,6 +52,16 @@ class RealTimePlotter:
         controls_group.setLayout(controls_layout)
         controls_group.setMaximumHeight(80)
         main_layout.addWidget(controls_group)
+
+        self.slider_widget = TargetCurveSliders(
+            bass_gain_db=self.bass_gain_db,
+            corner_freq=self.corner_freq,
+            tilt_db_per_decade=self.tilt_db_per_decade,
+        )
+        main_layout.addWidget(self.slider_widget)
+
+        # Connect signal
+        self.slider_widget.parametersChanged.connect(self.recalculate_target_curve_and_replot)
 
         # --- Configure Plots with New Layout ---
         self.freq_plot = self.plot_widget.addPlot(
@@ -187,9 +169,37 @@ class RealTimePlotter:
         self.error_data = []
         self.iteration_data = []
         self.filter_visuals = []
+        self.current_freqs = None
+        self.current_target_mag = None
 
         # --- Show Window ---
         self.win.showMaximized()
+
+    # --- Target Curve Control Methods ---
+
+    def recalculate_target_curve_and_replot(self, params):
+        """
+        Updates target curve parameters from a parameter dict,
+        recalculates the target curve, and updates the plot.
+        This is triggered by the sliders widget.
+        """
+        self.bass_gain_db = params["bass_gain_db"]
+        self.corner_freq = params["corner_freq"]
+        self.tilt_db_per_decade = params["tilt_db_per_decade"]
+
+        if self.current_freqs is None:
+            return
+
+        new_target_mag = utils.generate_harman_target(
+            self.current_freqs,
+            bass_gain_db=self.bass_gain_db,
+            corner_freq=self.corner_freq,
+            tilt_db_per_decade=self.tilt_db_per_decade
+        )
+        self.current_target_mag = new_target_mag
+
+        freqs_masked_plot, _ = utils.mask_high_freqs_plot(self.current_freqs, new_target_mag)
+        self.target_curve.setData(freqs_masked_plot, new_target_mag[:len(freqs_masked_plot)])
 
     def toggle_filter_visuals(self, checked):
         """Show or hide all plot items related to filter visualization."""
@@ -247,6 +257,10 @@ class RealTimePlotter:
         filter_list,
     ):
         """Update frequency response curves, target curve, and filter visuals."""
+        # Store current frequency data for target curve recalculation
+        self.current_freqs = freqs
+        self.current_target_mag = target_curve_data
+        
         self.original_curve.setData(freqs, original)
         self.best_corrected_curve.setData(freqs, best_corrected)
         self.latest_corrected_curve.setData(freqs, latest_corrected)

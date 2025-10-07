@@ -20,20 +20,50 @@ def main():
     plotter = RealTimePlotter(app)
     auto_eq = None  # Will hold the current worker instance
 
-    def start_worker():
+    def start_worker(single_sweep=False):
         nonlocal auto_eq
         # If a worker is already running, ignore
         if auto_eq is not None and getattr(auto_eq, "isRunning", lambda: False)():
             print("AutoEQ worker already running.")
             return
+        
         # Create and wire a new worker thread
-        auto_eq = AutoEQIterative()
+        auto_eq = AutoEQIterative(
+            single_sweep=single_sweep,
+            bass_gain_db=plotter.bass_gain_db,
+            corner_freq=plotter.corner_freq,
+            tilt_db_per_decade=plotter.tilt_db_per_decade
+        )
         auto_eq.update_freq_signal.connect(plotter.update_freq_response)
         auto_eq.update_error_signal.connect(plotter.update_error)
+        
+        # Connect finished signal for cleanup, especially important for single sweeps
+        auto_eq.finished.connect(worker_finished)
+        
         auto_eq.start()
-        plotter.btn_start.setEnabled(False)
-        plotter.btn_stop.setEnabled(True)
-        print("AutoEQ worker started.")
+        
+        # Only disable buttons if it's a continuous run
+        if not single_sweep:
+            plotter.btn_start.setEnabled(False)
+            plotter.btn_stop.setEnabled(True)
+        else:
+            # Disable start/stop buttons temporarily during the initial sweep
+            plotter.btn_start.setEnabled(False)
+            plotter.btn_stop.setEnabled(False)
+            
+        print(f"AutoEQ worker started (Single Sweep: {single_sweep}).")
+
+    def worker_finished():
+        nonlocal auto_eq
+        print("AutoEQ worker finished.")
+        # Clean up the thread object
+        if auto_eq is not None:
+            auto_eq.deleteLater()
+            auto_eq = None
+        
+        # Re-enable buttons
+        plotter.btn_start.setEnabled(True)
+        plotter.btn_stop.setEnabled(False)
 
     def stop_worker():
         nonlocal auto_eq
@@ -42,13 +72,15 @@ def main():
             return
         # Request a graceful stop; the worker will check the flag and exit
         auto_eq.stop()
-        plotter.btn_stop.setEnabled(False)
-        plotter.btn_start.setEnabled(True)
+        # The worker_finished slot will handle re-enabling buttons when the thread exits
         print("Stop requested for AutoEQ worker.")
 
     # Wire UI buttons to the start/stop handlers
-    plotter.btn_start.clicked.connect(start_worker)
+    plotter.btn_start.clicked.connect(lambda: start_worker(single_sweep=False))
     plotter.btn_stop.clicked.connect(stop_worker)
+    
+    # --- Trigger initial single sweep measurement ---
+    start_worker(single_sweep=True)
 
     # Execute the application
     app.exec_()

@@ -42,6 +42,10 @@ TARGET_CORNER_FREQ_HZ = 105.0  # The frequency where the bass boost starts to le
 EQ_CONFIG_PATH = r"C:\Program Files\EqualizerAPO\config\peace.txt"
 AUDIO_OUTPUT_DIR = "audio_outputs"
 
+# Microphone Calibration Settings
+MIC_CALIBRATION_DEVICE_NAME = "iMM-6C"
+MIC_CALIBRATION_FILE_PATH = "CMM27935.txt"
+
 
 OPTIMIZER_SMOOTHING_FACTOR = 1/6
 MAX_FINETUNE_ITERATIONS = 10

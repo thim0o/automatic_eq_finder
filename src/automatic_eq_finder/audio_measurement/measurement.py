@@ -10,6 +10,7 @@ from scipy.stats import t
 import csv
 import os
 from .. import utils
+from .. import config
 
 class FrequencyResponseMeasurement:
     """
@@ -57,7 +58,25 @@ class FrequencyResponseMeasurement:
         self.p = pyaudio.PyAudio()
         self.audio_queue = queue.Queue()
         self.results = {}
+        
+        # Identify the default input device name
+        self.input_device_name = self._get_default_input_device_name()
+        
+        # Load microphone calibration data
+        self.cal_freqs, self.cal_mags = utils.load_calibration_data(config.MIC_CALIBRATION_FILE_PATH)
+        
         # cooperative stop event and playback thread reference
+    def _get_default_input_device_name(self):
+        """Retrieves the name of the default input device."""
+        try:
+            default_device_index = self.p.get_default_input_device_info()['index']
+            device_info = self.p.get_device_info_by_index(default_device_index)
+            return device_info['name']
+        except IOError:
+            return "Default Input Device (Error: No default device found)"
+        except Exception as e:
+            return f"Default Input Device (Error: {e})"
+
         self._stop_event = threading.Event()
         self._playback_thread_obj = None
 
@@ -246,6 +265,7 @@ class FrequencyResponseMeasurement:
 
     def run_measurement(self):
         """Run the full frequency response measurement"""
+        print(f"Using input device: {self.input_device_name}")
         print("Starting frequency response measurement with rapid sweep...")
 
         # cooperative stop: clear any previous stop flag
@@ -364,15 +384,33 @@ class FrequencyResponseMeasurement:
                     interpolated_magnitudes.append(interpolated)
 
             if interpolated_magnitudes: # Check if interpolated_magnitudes is not empty
-                # Average the results
-                avg_magnitude = np.mean(interpolated_magnitudes, axis=0)
+                
+                # Convert list of arrays to a single numpy array for easier processing
+                all_mags = np.array(interpolated_magnitudes)
+
+                # Apply microphone calibration if device name matches and calibration data is available
+                if config.MIC_CALIBRATION_DEVICE_NAME in self.input_device_name and self.cal_freqs.size > 0:
+                    print(f"Applying microphone calibration for device: {self.input_device_name}")
+                    # Interpolate calibration magnitude to measured frequencies (freq_ref)
+                    cal_mags_interp = np.interp(
+                        freq_ref,
+                        self.cal_freqs,
+                        self.cal_mags,
+                        left=self.cal_mags[0],
+                        right=self.cal_mags[-1]
+                    )
+                    # Subtract calibration magnitude from all measured magnitudes
+                    all_mags = all_mags - cal_mags_interp
+                
+                # Average the results (calibrated or uncalibrated)
+                avg_magnitude = np.mean(all_mags, axis=0)
 
                 # Store only frequencies within our test range
                 mask = (freq_ref >= self.start_freq) & (freq_ref <= self.end_freq)
                 self.results = {
                     'frequencies': freq_ref[mask],
                     'magnitude': avg_magnitude[mask],
-                    'individual_magnitudes': np.array(interpolated_magnitudes)[:, mask]
+                    'individual_magnitudes': all_mags[:, mask]
                 }
 
                 print("Measurement complete!")

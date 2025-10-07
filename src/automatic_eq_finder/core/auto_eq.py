@@ -3,6 +3,9 @@
 import numpy as np
 import time
 import copy
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from ..audio_measurement.measurement import FrequencyResponseMeasurement
@@ -25,11 +28,16 @@ class AutoEQIterative(QThread):
     update_freq_signal = pyqtSignal(np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, list)
     update_error_signal = pyqtSignal(int, float, float, float)
 
-    def __init__(self):
+    def __init__(self, single_sweep=False, bass_gain_db=config.TARGET_BASS_BOOST_DB,
+                 corner_freq=config.TARGET_CORNER_FREQ_HZ, tilt_db_per_decade=config.TARGET_TILT_DB_PER_DECADE):
         super(AutoEQIterative, self).__init__()
+        self.single_sweep = single_sweep
         self.baseline_response = None
         self.freqs = None
         self.target_mag = None
+        self.bass_gain_db = bass_gain_db
+        self.corner_freq = corner_freq
+        self.tilt_db_per_decade = tilt_db_per_decade
         self.filter_list = []
         self.correction_factor = config.CORRECTION_FACTOR
         self.best_rms_error = float('inf')
@@ -99,7 +107,7 @@ class AutoEQIterative(QThread):
         f_peak = np.clip(f_peak, freqs[0], freqs[-1])
         return (f_peak, gain, q)
 
-    def refine_or_merge_filter(self, new_filter, freq_threshold=0.1):
+    def refine_or_merge_filter(self, new_filter, freq_threshold=0.12):
         """Merges a new filter with a close existing one, if applicable."""
         (fc_new, gain_new, q_new) = new_filter
         sign_new = np.sign(gain_new)
@@ -126,7 +134,12 @@ class AutoEQIterative(QThread):
             print("Measurement aborted or stop requested before starting optimization.")
             return
         self.freqs = freqs
-        self.target_mag = utils.generate_harman_target(self.freqs)
+        self.target_mag = utils.generate_harman_target(
+            self.freqs,
+            bass_gain_db=self.bass_gain_db,
+            corner_freq=self.corner_freq,
+            tilt_db_per_decade=self.tilt_db_per_decade
+        )
     
         idx_norm = np.argmin(np.abs(freqs - config.NORM_FREQ))
         measured_norm = measured - measured[idx_norm]
@@ -151,8 +164,8 @@ class AutoEQIterative(QThread):
         self.update_error_signal.emit(0, initial_rms_for_plot, initial_rms_for_plot, initial_rms_for_plot)
         # <<< END OF IMMEDIATE UPDATE >>>
     
-        if self._stop_requested:
-            print("Stop requested after initial update.")
+        if self._stop_requested or self.single_sweep:
+            print("Stop requested or single sweep mode enabled. Exiting after initial update.")
             return
     
         # --- 2. Main Sequential Optimization ---

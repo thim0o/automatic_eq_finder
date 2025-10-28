@@ -7,11 +7,11 @@ Central configuration settings for the Automatic EQ Equalizer application.
 # =============================================================================
 # MEASUREMENT SETTINGS
 # =============================================================================
-SWEEP_DURATION = 1  # seconds per sweep
+SWEEP_DURATION = 2  # seconds per sweep
 NUM_AVERAGES = 1  # number of sweeps to average
 
-START_FREQ = 35  # Hz (increase if your speakers don't go so low)
-END_FREQ = 1000  # Hz (upper limit for correction)
+START_FREQ = 60  # Hz (increase if your speakers don't go so low)
+END_FREQ = 10000  # Hz (upper limit for correction)
 MEASURE_EXTRA_RATIO = 0.55  # Measure higher than END_FREQ to counter drop off
 TARGET_FREQ_RATIO = 1  # Use lower 70% of frequencies (up to END_FREQ) for target/error calc
 NORM_FREQ = 1000  # Frequency to normalize (0 dB)
@@ -32,8 +32,8 @@ INITIAL_PEAK_Q_MAX = 50
 # =============================================================================
 # TARGET CURVE SETTINGS (HARMAN-LIKE)
 # =============================================================================
-TARGET_BASS_BOOST_DB = 9  # How many dB to boost the bass.
-TARGET_TILT_DB_PER_DECADE = -1.0  # Downward slope. E.g., -1dB means 1k is 1dB louder than 10k.
+TARGET_BASS_BOOST_DB = 6  # How many dB to boost the bass.
+TARGET_TILT_DB_PER_DECADE = -14.0  # Downward slope. E.g., -1dB means 1k is 1dB louder than 10k.
 TARGET_CORNER_FREQ_HZ = 105.0  # The frequency where the bass boost starts to level off.
 
 # =============================================================================

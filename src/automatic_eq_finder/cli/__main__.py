@@ -34,8 +34,15 @@ def main():
             corner_freq=plotter.corner_freq,
             tilt_db_per_decade=plotter.tilt_db_per_decade
         )
+        # Connect signals to update the UI
         auto_eq.update_freq_signal.connect(plotter.update_freq_response)
         auto_eq.update_error_signal.connect(plotter.update_error)
+        # Connect microphone/device name info so the UI shows which mic is used
+        try:
+            auto_eq.mic_info_signal.connect(plotter.set_mic_name)
+        except Exception:
+            # If the attribute is not present for some reason, ignore silently
+            pass
         
         # Connect finished signal for cleanup, especially important for single sweeps
         auto_eq.finished.connect(worker_finished)

@@ -58,27 +58,31 @@ class FrequencyResponseMeasurement:
         self.p = pyaudio.PyAudio()
         self.audio_queue = queue.Queue()
         self.results = {}
+        self._stop_event = threading.Event()
+        self._playback_thread_obj = None
         
-        # Identify the default input device name
+        # Identify the default input device name (also stores index/info when available)
         self.input_device_name = self._get_default_input_device_name()
         
         # Load microphone calibration data
         self.cal_freqs, self.cal_mags = utils.load_calibration_data(config.MIC_CALIBRATION_FILE_PATH)
-        
-        # cooperative stop event and playback thread reference
     def _get_default_input_device_name(self):
-        """Retrieves the name of the default input device."""
+        """Retrieves the name of the default input device and stores index/info on self."""
         try:
             default_device_index = self.p.get_default_input_device_info()['index']
             device_info = self.p.get_device_info_by_index(default_device_index)
-            return device_info['name']
+            # store device info for later use
+            self.input_device_index = default_device_index
+            self.input_device_info = device_info
+            return device_info.get('name', f"Input Device #{default_device_index}")
         except IOError:
+            self.input_device_index = None
+            self.input_device_info = {}
             return "Default Input Device (Error: No default device found)"
         except Exception as e:
+            self.input_device_index = None
+            self.input_device_info = {}
             return f"Default Input Device (Error: {e})"
-
-        self._stop_event = threading.Event()
-        self._playback_thread_obj = None
 
 
     def generate_log_sweep(self):
@@ -265,9 +269,13 @@ class FrequencyResponseMeasurement:
 
     def run_measurement(self):
         """Run the full frequency response measurement"""
-        print(f"Using input device: {self.input_device_name}")
+        idx = getattr(self, 'input_device_index', None)
+        if idx is not None:
+            print(f"Using input device: {self.input_device_name} (index {idx})")
+        else:
+            print(f"Using input device: {self.input_device_name}")
         print("Starting frequency response measurement with rapid sweep...")
-
+ 
         # cooperative stop: clear any previous stop flag
         try:
             self._stop_event.clear()

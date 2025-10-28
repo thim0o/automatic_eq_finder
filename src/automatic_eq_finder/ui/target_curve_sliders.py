@@ -36,8 +36,8 @@ class TargetCurveSliders(QtWidgets.QGroupBox):
         self._add_slider(
             layout,
             "Tilt (dB/dec)",
-            -10.0,
-            2.0,
+            -15.0,
+            3.0,
             tilt_db_per_decade,
             100,
             "tilt_db_per_decade",
@@ -46,8 +46,8 @@ class TargetCurveSliders(QtWidgets.QGroupBox):
         self._add_slider(
             layout,
             "Corner Freq (Hz)",
-            50.0,
-            200.0,
+            30.0,
+            230.0,
             corner_freq,
             1,
             "corner_freq",

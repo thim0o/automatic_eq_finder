@@ -10,6 +10,7 @@ from .style_sheet import DARK_STYLESHEET
 from .. import config
 from .. import utils
 from .target_curve_sliders import TargetCurveSliders
+from ..audio_measurement.quality_analyzer import QualityAnalyzer
 
 
 
@@ -92,6 +93,15 @@ class RealTimePlotter:
             [[(0, "Original"), (1, "Best"), (2, "Latest")]]
         )
 
+        self.responsiveness_plot = self.plot_widget.addPlot(
+            title="Frequency Responsiveness", row=2, col=0, colspan=2
+        )
+        self.responsiveness_plot.setLogMode(x=True, y=False)
+        self.responsiveness_plot.setLabels(left="Responsiveness", bottom="Frequency (Hz)")
+        self.responsiveness_plot.showGrid(x=True, y=True, alpha=0.3)
+        self.responsiveness_plot.setYRange(0, 2)
+        self.responsiveness_plot.addLegend(labelTextSize="12pt")
+
         # --- Initialize Curves and Bars ---
         self.original_curve = self.freq_plot.plot(
             pen=pg.mkPen("#00ffff", width=1.5), name="Original"
@@ -110,6 +120,12 @@ class RealTimePlotter:
             pen=pg.mkPen("#00ff00", width=2.5, style=QtCore.Qt.PenStyle.SolidLine),
             name="Target Curve",
         )  # Bright Green
+
+        self.responsiveness_curve = self.responsiveness_plot.plot(
+            pen=pg.mkPen("#ffffff", width=1.5), name="Responsiveness"
+        )
+        # Add a reference line at 1.0
+        self.responsiveness_plot.addLine(y=1.0, pen=pg.mkPen("g", style=QtCore.Qt.PenStyle.DashLine))
 
         # Use a brighter green for better visibility on dark background
         self.error_curve = self.error_plot.plot(
@@ -158,9 +174,16 @@ class RealTimePlotter:
         # --- Start / Stop Buttons ---
         self.btn_start = QtWidgets.QPushButton("Start")
         self.btn_stop = QtWidgets.QPushButton("Stop")
+        
+        # --- Quality Indicator ---
+        self.quality_label = QtWidgets.QLabel("Quality: --%")
+        self.quality_label.setStyleSheet("font-size: 16pt; font-weight: bold; color: #dcdcdc; margin-left: 20px;")
+        
         # Initially, the process is not running so Stop is disabled
         self.btn_stop.setEnabled(False)
         # Add a little spacing before buttons (stretch keeps checkboxes left-aligned)
+        controls_layout.addStretch(1)
+        controls_layout.addWidget(self.quality_label)
         controls_layout.addStretch(1)
         controls_layout.addWidget(self.btn_start)
         controls_layout.addWidget(self.btn_stop)
@@ -276,6 +299,22 @@ class RealTimePlotter:
         self.original_error_bar.setOpts(height=[original_rms])
         self.best_error_bar.setOpts(height=[best_rms])
         self.latest_error_bar.setOpts(height=[error_value])
+
+    def update_target_params(self, bass_gain_db, corner_freq, tilt_db_per_decade):
+        """Update the sliders with new target parameters."""
+        self.slider_widget.set_parameters(bass_gain_db, corner_freq, tilt_db_per_decade)
+
+    def update_responsiveness(self, freqs, responsiveness):
+        """Update the responsiveness plot."""
+        freqs_masked, resp_masked = utils.mask_high_freqs_plot(freqs, responsiveness)
+        self.responsiveness_curve.setData(freqs_masked, resp_masked)
+
+    def update_quality(self, score):
+        """Update the quality indicator label."""
+        analyzer = QualityAnalyzer()
+        color = analyzer.get_quality_color(score)
+        self.quality_label.setText(f"Quality: {score:.1f}%")
+        self.quality_label.setStyleSheet(f"font-size: 16pt; font-weight: bold; color: {color}; margin-left: 20px;")
 
     def process_events(self):
         """Keep the GUI responsive."""

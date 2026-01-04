@@ -32,11 +32,15 @@ def main():
             single_sweep=single_sweep,
             bass_gain_db=plotter.bass_gain_db,
             corner_freq=plotter.corner_freq,
-            tilt_db_per_decade=plotter.tilt_db_per_decade
+            tilt_db_per_decade=plotter.tilt_db_per_decade,
+            skip_fitting=not single_sweep # Skip fitting if it's not the initial sweep
         )
         # Connect signals to update the UI
         auto_eq.update_freq_signal.connect(plotter.update_freq_response)
         auto_eq.update_error_signal.connect(plotter.update_error)
+        auto_eq.update_target_params_signal.connect(plotter.update_target_params)
+        auto_eq.update_responsiveness_signal.connect(plotter.update_responsiveness)
+        auto_eq.update_quality_signal.connect(plotter.update_quality)
         # Connect microphone/device name info so the UI shows which mic is used
         try:
             auto_eq.mic_info_signal.connect(plotter.set_mic_name)

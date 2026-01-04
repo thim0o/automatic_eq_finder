@@ -19,7 +19,7 @@ NORM_FREQ = 1000  # Frequency to normalize (0 dB)
 # =============================================================================
 # OPTIMIZATION SETTINGS
 # =============================================================================
-ERROR_THRESHOLD = 1.0  # target RMS error (in dB) in the masked frequency region
+ERROR_THRESHOLD = 0.5  # target RMS error (in dB) in the masked frequency region
 CORRECTION_FACTOR = 1  # initial fraction of the deviation to correct each iteration
 
 # === Settings for initial optimization (fmin_slsqp) ===

@@ -11,6 +11,7 @@ import csv
 import os
 from .. import utils
 from .. import config
+from .quality_analyzer import QualityAnalyzer
 
 class FrequencyResponseMeasurement:
     """
@@ -60,6 +61,8 @@ class FrequencyResponseMeasurement:
         self.results = {}
         self._stop_event = threading.Event()
         self._playback_thread_obj = None
+        
+        self.quality_analyzer = QualityAnalyzer(sample_rate=self.sample_rate)
         
         # Identify the default input device name (also stores index/info when available)
         self.input_device_name = self._get_default_input_device_name()
@@ -308,6 +311,7 @@ class FrequencyResponseMeasurement:
         all_freqs = []
         all_magnitudes = []
         all_individual_magnitudes = []
+        all_qualities = []
 
         for i in range(self.num_averages):
             # cooperative stop check
@@ -358,9 +362,17 @@ class FrequencyResponseMeasurement:
                 # Calculate frequency response
                 frequencies, magnitude = self.calculate_frequency_response(impulse_response)
 
+                # Calculate quality metrics
+                pnr = self.quality_analyzer.calculate_pnr(impulse_response)
+                noise_floor = self.quality_analyzer.estimate_noise_floor(recorded_data)
+                quality_score = self.quality_analyzer.get_quality_score(pnr, noise_floor)
+                
+                print(f"Measurement {i+1} Quality: {quality_score:.1f}% (PNR: {pnr:.1f}dB, Noise: {noise_floor:.1f}dB)")
+
                 # Store results
                 all_freqs.append(frequencies)
                 all_magnitudes.append(magnitude)
+                all_qualities.append(quality_score)
 
             except Exception as e:
                 print(f"Error processing measurement {i + 1}: {e}")
@@ -418,7 +430,8 @@ class FrequencyResponseMeasurement:
                 self.results = {
                     'frequencies': freq_ref[mask],
                     'magnitude': avg_magnitude[mask],
-                    'individual_magnitudes': all_mags[:, mask]
+                    'individual_magnitudes': all_mags[:, mask],
+                    'quality_score': np.mean(all_qualities) if all_qualities else 0.0
                 }
 
                 print("Measurement complete!")

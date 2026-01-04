@@ -47,7 +47,7 @@ class TargetCurveSliders(QtWidgets.QGroupBox):
             layout,
             "Corner Freq (Hz)",
             30.0,
-            230.0,
+            300.0,
             corner_freq,
             1,
             "corner_freq",
@@ -93,7 +93,15 @@ class TargetCurveSliders(QtWidgets.QGroupBox):
             )
 
         slider.valueChanged.connect(on_change)
+        setattr(self, f"slider_{param_name}", slider) # Store reference to update value programmatically
 
         container.addLayout(label_row)
         container.addWidget(slider)
         parent_layout.addLayout(container)
+
+    def set_parameters(self, bass_gain_db, corner_freq, tilt_db_per_decade):
+        """Programmatically update the sliders without triggering redundant signals if possible, 
+        though the current on_change will still emit."""
+        self.slider_bass_gain_db.setValue(int(bass_gain_db * 10))
+        self.slider_tilt_db_per_decade.setValue(int(tilt_db_per_decade * 100))
+        self.slider_corner_freq.setValue(int(corner_freq * 1))

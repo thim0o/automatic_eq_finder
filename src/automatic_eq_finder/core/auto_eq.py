@@ -14,6 +14,8 @@ from ..optimization.optimizer import (
     optimize_eq_parameters,
     compute_eq_curve
 )
+from ..optimization.fitter import fit_target_parameters
+from ..optimization.responsiveness_analyzer import analyze_responsiveness
 from .. import config
 from .. import utils
 
@@ -27,11 +29,16 @@ class AutoEQIterative(QThread):
     """
     update_freq_signal = pyqtSignal(np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, list)
     update_error_signal = pyqtSignal(int, float, float, float)
+    update_target_params_signal = pyqtSignal(float, float, float)
+    update_responsiveness_signal = pyqtSignal(np.ndarray, np.ndarray)
+    update_quality_signal = pyqtSignal(float)
 
     def __init__(self, single_sweep=False, bass_gain_db=config.TARGET_BASS_BOOST_DB,
-                 corner_freq=config.TARGET_CORNER_FREQ_HZ, tilt_db_per_decade=config.TARGET_TILT_DB_PER_DECADE):
+                 corner_freq=config.TARGET_CORNER_FREQ_HZ, tilt_db_per_decade=config.TARGET_TILT_DB_PER_DECADE,
+                 skip_fitting=False):
         super(AutoEQIterative, self).__init__()
         self.single_sweep = single_sweep
+        self.skip_fitting = skip_fitting
         self.baseline_response = None
         self.freqs = None
         self.target_mag = None
@@ -60,10 +67,16 @@ class AutoEQIterative(QThread):
         try:
             print("Measuring frequency response...")
             results = frm.run_measurement()
-            return results['frequencies'], results['magnitude'], frm.sample_rate
+            if results is None:
+                return None, None, None, 0.0
+            
+            quality = results.get('quality_score', 0.0)
+            self.update_quality_signal.emit(quality)
+            
+            return results['frequencies'], results['magnitude'], frm.sample_rate, quality
         except Exception as e:
             print("Measurement error:", e)
-            return None, None, None
+            return None, None, None, 0.0
         finally:
             frm.cleanup()
 
@@ -129,7 +142,7 @@ class AutoEQIterative(QThread):
         measurement_end_freq = config.END_FREQ * (1 + config.MEASURE_EXTRA_RATIO)
     
         # --- 1. Initial Measurement & IMMEDIATE UI Update ---
-        freqs, measured, fs = self.measure_response(config.START_FREQ, measurement_end_freq)
+        freqs, measured, fs, quality = self.measure_response(config.START_FREQ, measurement_end_freq)
         if freqs is None or self._stop_requested:
             print("Measurement aborted or stop requested before starting optimization.")
             return
@@ -144,6 +157,28 @@ class AutoEQIterative(QThread):
         idx_norm = np.argmin(np.abs(freqs - config.NORM_FREQ))
         measured_norm = measured - measured[idx_norm]
         self.baseline_response = np.copy(measured_norm)
+
+        # --- 1.5 Fit Target Curve to Baseline ---
+        if not self.skip_fitting:
+            print("Fitting target curve parameters to initial measurement...")
+            fitted_params = fit_target_parameters(
+                self.freqs, self.baseline_response,
+                self.bass_gain_db, self.corner_freq, self.tilt_db_per_decade
+            )
+            self.bass_gain_db, self.corner_freq, self.tilt_db_per_decade = fitted_params
+            print(f"Fitted parameters: Bass Gain={self.bass_gain_db:.1f} dB, Corner={self.corner_freq:.1f} Hz, Tilt={self.tilt_db_per_decade:.2f} dB/dec")
+            
+            # Update target_mag with fitted parameters
+            self.target_mag = utils.generate_harman_target(
+                self.freqs,
+                bass_gain_db=self.bass_gain_db,
+                corner_freq=self.corner_freq,
+                tilt_db_per_decade=self.tilt_db_per_decade
+            )
+            # Notify UI about new parameters
+            self.update_target_params_signal.emit(self.bass_gain_db, self.corner_freq, self.tilt_db_per_decade)
+        else:
+            print("Skipping target curve fitting as requested (using user-defined parameters).")
     
         initial_rms_for_plot = self.compute_rms_error(freqs, self.baseline_response)
         print(f"Initial RMS Error (unsmoothed): {initial_rms_for_plot:.2f} dB")
@@ -187,6 +222,8 @@ class AutoEQIterative(QThread):
     
         # --- 3. Iterative Fine-Tuning Loop ---
         current_measurement = None
+        previous_measurement = np.copy(self.baseline_response)
+        previous_filters = []
         iteration = 0
         while iteration < config.MAX_FINETUNE_ITERATIONS:
             # Allow a graceful interrupt between iterations
@@ -195,7 +232,7 @@ class AutoEQIterative(QThread):
                 break
     
             # Measure the current state of the room with the latest filters
-            freqs_iter, measured_iter, _ = self.measure_response(config.START_FREQ, measurement_end_freq)
+            freqs_iter, measured_iter, _, quality_iter = self.measure_response(config.START_FREQ, measurement_end_freq)
             if freqs_iter is None:
                 break
     
@@ -223,6 +260,17 @@ class AutoEQIterative(QThread):
             )
             self.update_error_signal.emit(iteration + 1, current_rms, initial_rms_for_plot, self.best_rms_error)
     
+            # --- Responsiveness Analysis ---
+            responsiveness = analyze_responsiveness(
+                self.freqs, previous_measurement, current_measurement,
+                previous_filters, self.filter_list
+            )
+            self.update_responsiveness_signal.emit(self.freqs, responsiveness)
+            
+            # Update previous state for next iteration
+            previous_measurement = np.copy(current_measurement)
+            previous_filters = copy.deepcopy(self.filter_list)
+
             print(
                 f"Fine-tune Iteration {iteration + 1}, Current RMS: {current_rms:.2f} dB, Best RMS: {self.best_rms_error:.2f} dB")
     

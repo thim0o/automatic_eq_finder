@@ -27,7 +27,8 @@ def fake_measurement_data():
     magnitude[peak_freq_index] += 15.0
 
     sample_rate = 44100
-    return freqs, magnitude, sample_rate
+    quality = 100.0
+    return freqs, magnitude, sample_rate, quality
 
 
 def test_auto_eq_full_run_simulation(fake_measurement_data):
@@ -47,14 +48,14 @@ def test_auto_eq_full_run_simulation(fake_measurement_data):
     ) as mock_measure, patch(
         "automatic_eq_finder.core.auto_eq.AutoEQIterative.apply_filters"
     ) as mock_apply, patch(
-        "time.sleep"
+        "automatic_eq_finder.core.auto_eq.time.sleep"
     ):
 
         # Configure the mocked measurement to return our predictable test data.
         mock_measure.return_value = fake_measurement_data
 
         # Initialize the worker thread that contains the core application logic.
-        worker = AutoEQIterative()
+        worker = AutoEQIterative(skip_fitting=True)
 
         # Create mock "slots" to verify that the UI signals are emitted.
         mock_freq_slot = MagicMock()

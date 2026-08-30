@@ -2,7 +2,6 @@ import numpy as np
 import pyaudio
 import matplotlib.pyplot as plt
 from scipy import signal
-import time
 import threading
 import queue
 from scipy.io import wavfile
@@ -60,6 +59,7 @@ class FrequencyResponseMeasurement:
         self.audio_queue = queue.Queue()
         self.results = {}
         self._stop_event = threading.Event()
+        self._playback_started = threading.Event()
         self._playback_thread_obj = None
         
         self.quality_analyzer = QualityAnalyzer(sample_rate=self.sample_rate)
@@ -161,6 +161,7 @@ class FrequencyResponseMeasurement:
                              channels=1,
                              rate=self.sample_rate,
                              output=True)
+        self._playback_started.set()
         stream.write(audio_data.tobytes())
         stream.stop_stream()
         stream.close()
@@ -192,11 +193,17 @@ class FrequencyResponseMeasurement:
         """Thread function for playing audio"""
         while True:
             item = self.audio_queue.get()
-            if item is None:  # Signal to exit
-                break
-            audio_data, data_format = item
-            self.play_audio(audio_data, data_format=data_format)
-            self.audio_queue.task_done()
+            try:
+                if item is None:  # Signal to exit
+                    break
+                audio_data, data_format = item
+                try:
+                    self.play_audio(audio_data, data_format=data_format)
+                except Exception as exc:
+                    print(f"Error playing audio: {exc}")
+            finally:
+                # Always release the queue item, including playback failures.
+                self.audio_queue.task_done()
 
     def calculate_impulse_response(self, recorded_sweep, sweep, inverse_filter):
         """Calculate the impulse response using deconvolution"""
@@ -285,6 +292,7 @@ class FrequencyResponseMeasurement:
         except Exception:
             pass
         # Start playback thread
+        self._playback_started.clear()
         playback_thread = threading.Thread(target=self.playback_thread)
         playback_thread.daemon = True
         playback_thread.start()
@@ -330,10 +338,13 @@ class FrequencyResponseMeasurement:
             print(f"Running measurement {i + 1}/{self.num_averages}")
 
             # Queue the audio for playback - UNPROCESSED sweep is float32
+            self._playback_started.clear()
             self.audio_queue.put((test_signal, 'float32'))
 
-            # Short delay to ensure recording starts after playback
-            time.sleep(0.05)
+            # Wait for the playback worker to dequeue the signal before recording.
+            if not self._playback_started.wait(timeout=1.0):
+                print("Playback did not start within the expected time.")
+                break
 
             # Record the response
             record_duration = len(test_signal) / self.sample_rate + 0.2  # Add margin

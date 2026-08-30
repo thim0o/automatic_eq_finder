@@ -45,6 +45,7 @@ class AutoEQIterative(QThread):
         self.bass_gain_db = bass_gain_db
         self.corner_freq = corner_freq
         self.tilt_db_per_decade = tilt_db_per_decade
+        self._initial_target_params = (bass_gain_db, corner_freq, tilt_db_per_decade)
         self.filter_list = []
         self.correction_factor = config.CORRECTION_FACTOR
         self.best_rms_error = float('inf')
@@ -138,6 +139,15 @@ class AutoEQIterative(QThread):
     def run(self):
         # Reset any previous stop request and start the process
         self._stop_requested = False
+        # A worker can be run more than once; do not carry results between runs.
+        self.filter_list = []
+        self.best_filter_list = []
+        self.best_rms_error = float('inf')
+        self.best_corrected_response = None
+        self.baseline_response = None
+        self.freqs = None
+        self.target_mag = None
+        self.bass_gain_db, self.corner_freq, self.tilt_db_per_decade = self._initial_target_params
         self.reset_eq()
         measurement_end_freq = config.END_FREQ * (1 + config.MEASURE_EXTRA_RATIO)
     

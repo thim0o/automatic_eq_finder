@@ -3,6 +3,7 @@
 import pytest
 import numpy as np
 from unittest.mock import Mock, patch
+import threading
 
 from automatic_eq_finder.audio_measurement.measurement import (
     FrequencyResponseMeasurement,
@@ -18,10 +19,8 @@ class TestFrequencyResponseMeasurement:
     @pytest.fixture(autouse=True)
     def setup_method(self):
         """Set up a fresh instance for each test method."""
-        self.frm = FrequencyResponseMeasurement(
-            sample_rate=44100,
-            sweep_duration=1.0,
-        )
+        with patch("automatic_eq_finder.audio_measurement.measurement.pyaudio.PyAudio"):
+            self.frm = FrequencyResponseMeasurement(sample_rate=44100, sweep_duration=1.0)
 
     def test_generate_log_sweep(self):
         """Tests that the generated sweep has the correct properties."""
@@ -93,3 +92,29 @@ class TestFrequencyResponseMeasurement:
         mock_pa_instance.open.assert_called_once()
         mock_stream.read.assert_called()
         assert isinstance(recorded_data, np.ndarray)
+
+    @patch("automatic_eq_finder.audio_measurement.measurement.pyaudio.PyAudio")
+    def test_playback_thread_marks_queue_item_done_on_failure(self, mock_pyaudio_class):
+        """A playback error must not leave queue.join() blocked forever."""
+        frm = FrequencyResponseMeasurement()
+        frm.play_audio = Mock(side_effect=RuntimeError("playback failed"))
+        frm.audio_queue.put((np.zeros(1, dtype=np.float32), "float32"))
+        frm.audio_queue.put(None)
+
+        thread = threading.Thread(target=frm.playback_thread)
+        thread.start()
+        thread.join(timeout=1)
+
+        assert not thread.is_alive()
+        frm.audio_queue.join()
+
+    @patch("automatic_eq_finder.audio_measurement.measurement.pyaudio.PyAudio")
+    def test_playback_started_is_set_after_stream_opens(self, mock_pyaudio_class):
+        """Recording coordination must wait until output stream setup succeeds."""
+        frm = FrequencyResponseMeasurement()
+        stream = Mock()
+        mock_pyaudio_class.return_value.open.return_value = stream
+
+        assert not frm._playback_started.is_set()
+        frm.play_audio(np.zeros(1, dtype=np.float32))
+        assert frm._playback_started.is_set()
